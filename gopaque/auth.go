@@ -191,7 +191,7 @@ func (s *ServerAuth) ToBytes() ([]byte, error) {
 func (s *ServerAuth) FromBytes(c Crypto, data []byte) (err error) {
 	b := newBuf(data)
 	ib, err := b.ReadVarBytes()
-	if err != nil {
+	if err == nil {
 		// TODO assuming NewKeyExchangeSigma is used as KeyExchange interface
 		keyExchangeSigma :=  NewKeyExchangeSigma(c)
 		s.embeddedKeyExchange = keyExchangeSigma
