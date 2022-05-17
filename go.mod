@@ -1,4 +1,4 @@
-module github.com/cretz/gopaque
+module github.com/jchauhan/gopaque
 
 go 1.12
 

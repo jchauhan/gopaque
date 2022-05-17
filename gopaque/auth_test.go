@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/cretz/gopaque/gopaque"
+	"github.com/jchauhan/gopaque/gopaque"
 )
 
 // This simple example doesn't marshal the messages, it just sends them.

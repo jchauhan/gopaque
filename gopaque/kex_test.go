@@ -3,7 +3,7 @@ package gopaque_test
 import (
 	"testing"
 
-	"github.com/cretz/gopaque/gopaque"
+	"github.com/jchauhan/gopaque/gopaque"
 )
 
 func TestKeyExchangeSigma(t *testing.T) {

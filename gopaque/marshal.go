@@ -69,6 +69,36 @@ func (b *buf) WritePointIfNotErr(err error, points ...kyber.Point) error {
 	return err
 }
 
+func (b *buf) ReadScalar(c Crypto) (kyber.Scalar, error) {
+	p := c.Scalar()
+	_, err := p.UnmarshalFrom(b)
+	return p, err
+}
+
+func (b *buf) ReadScalarIfNotErr(c Crypto, err error) (kyber.Scalar, error) {
+	if err != nil {
+		return nil, err
+	}
+	return b.ReadScalar(c)
+}
+
+
+func (b *buf) WriteScalar(scalars ...kyber.Scalar) error {
+	for _, p := range scalars {
+		if _, err := p.MarshalTo(b); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (b *buf) WriteScalarIfNotErr(err error, scalars ...kyber.Scalar) error {
+	if err == nil {
+		err = b.WriteScalar(scalars...)
+	}
+	return err
+}
+
 func (b *buf) ReadVarBytes() ([]byte, error) {
 	var l uint32
 	binary.Read(b, binary.BigEndian, &l)

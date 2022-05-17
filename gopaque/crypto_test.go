@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/cretz/gopaque/gopaque"
+	"github.com/jchauhan/gopaque/gopaque"
 )
 
 func TestCryptoAuthEncrypt(t *testing.T) {

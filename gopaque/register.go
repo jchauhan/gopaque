@@ -125,6 +125,26 @@ type ServerRegister struct {
 	userID     []byte
 }
 
+
+// ToBytes implements Marshaler.ToBytes.
+func (u *ServerRegister) ToBytes() ([]byte, error) {
+	b := newBuf(nil)
+	err := b.WriteScalar(u.privateKey, u.kU)
+	err = b.WriteScalarIfNotErr(err, u.kU)
+	err = b.WriteVarBytesIfNotErr(err, u.userID)
+	return b.Bytes(), err
+}
+
+// FromBytes implements Marshaler.FromBytes. This can return
+// ErrUnmarshalMoreData if the data is too big.
+func (u *ServerRegister) FromBytes(c Crypto, data []byte) (err error) {
+	b := newBuf(data)
+	u.privateKey, err = b.ReadScalar(c)
+	u.kU, err = b.ReadScalarIfNotErr(c, err)
+	u.userID, err = b.ReadVarBytesIfNotErr(err)
+	return b.AssertUnmarshalNoMoreDataIfNotErr(err)
+}
+
 // NewServerRegister creates a ServerRegister with the given key. The key can
 // be the same as used for other registrations.
 func NewServerRegister(crypto Crypto, privateKey kyber.Scalar) *ServerRegister {
