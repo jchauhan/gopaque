@@ -52,6 +52,26 @@ type KeyExchangeInfo struct {
 	TheirPublicKey kyber.Point
 }
 
+
+// ToBytes implements Marshaler.ToBytes.
+func (u *KeyExchangeInfo) ToBytes() ([]byte, error) {
+	b := newBuf(nil)
+	err := b.WriteScalar(u.MyPrivateKey)
+	err = b.WritePointIfNotErr(err, u.TheirPublicKey)
+	err = b.WriteVarBytesIfNotErr(err, u.UserID)
+	return b.Bytes(), err
+}
+
+// FromBytes implements Marshaler.FromBytes. This can return
+// ErrUnmarshalMoreData if the data is too big.
+func (u *KeyExchangeInfo) FromBytes(c Crypto, data []byte) (err error) {
+	b := newBuf(data)
+	u.MyPrivateKey, err = b.ReadScalar(c)
+	u.TheirPublicKey, err = b.ReadPointIfNotErr(c, err)
+	u.UserID, err = b.ReadVarBytesIfNotErr(err)
+	return b.AssertUnmarshalNoMoreDataIfNotErr(err)
+}
+
 // KeyExchangeSigma is a KeyExchange implementation using the 3-step SIGMA-I
 // protocol as mentioned in the OPAQUE RFC.
 type KeyExchangeSigma struct {
@@ -70,8 +90,44 @@ type KeyExchangeSigma struct {
 	theirExchangePublicKey kyber.Point
 }
 
+
 // NewKeyExchangeSigma creates the SIGMA KeyExchange with the given crypto.
 func NewKeyExchangeSigma(crypto Crypto) *KeyExchangeSigma { return &KeyExchangeSigma{crypto: crypto} }
+
+
+// ToBytes implements Marshaler.ToBytes.
+func (u *KeyExchangeSigma) ToBytes() ([]byte, error) {
+	b := newBuf(nil)
+	err := b.WriteScalar(u.myExchangePrivateKey)
+	err = b.WritePointIfNotErr(err, u.SharedSecret)
+	err = b.WritePointIfNotErr(err, u.myExchangePublicKey)
+	err = b.WritePointIfNotErr(err, u.theirExchangePublicKey)
+	ib, e2 := u.Info.ToBytes()
+	if e2 != nil {
+		return b.Bytes(), e2
+	}
+	err = b.WriteVarBytesIfNotErr(err, ib)
+	return b.Bytes(), err
+}
+
+// FromBytes implements Marshaler.FromBytes. This can return
+// ErrUnmarshalMoreData if the data is too big.
+func (u *KeyExchangeSigma) FromBytes(c Crypto, data []byte) (err error) {
+	b := newBuf(data)
+	u.myExchangePrivateKey, err = b.ReadScalar(c)
+	u.SharedSecret, err = b.ReadPointIfNotErr(c, err)
+	u.myExchangePublicKey, err = b.ReadPointIfNotErr(c, err)
+	u.theirExchangePublicKey, err = b.ReadPointIfNotErr(c, err)
+	ib, e2 := b.ReadVarBytesIfNotErr(err)
+	if e2 != nil {
+		return e2
+	}
+	u.Info = &KeyExchangeInfo{}
+	err = u.Info.FromBytes(c, ib)
+	u.crypto = c
+	return b.AssertUnmarshalNoMoreDataIfNotErr(err)
+}
+
 
 // KeyExchangeSigmaMsg1 is the first exchange message sent from the user to the
 // server. It implements Marshaler and is exposed only for debugging.

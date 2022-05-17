@@ -1,6 +1,7 @@
 package gopaque_test
 
 import (
+	"testing"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -13,7 +14,7 @@ import (
 
 // This example is a more complex example showing marshalling and using separate
 // user and server-side connections.
-func Example_withConnPipe() {
+func TestExample_withConnPipe(t *testing.T) {
 	// Create already-connected user/server pipe and a bool to tell when closed
 	userConn, serverConn := net.Pipe()
 	defer userConn.Close()
@@ -27,12 +28,14 @@ func Example_withConnPipe() {
 	go func() {
 		if err := RunServer(serverConn); err != nil && !serverClosed {
 			fmt.Printf("Server failed: %v\n", err)
+			panic(err)
 		}
 	}()
 
 	// Register a user. The returned key is just for checking later for this
 	// example. In general there is no reason to keep it around as it's sent
 	// back on auth.
+	fmt.Println("Starting user side reg with usernamae and pass")
 	key, err := UserSideRegister(userConn, "myuser", "mypass")
 	if err != nil {
 		panic(err)
@@ -110,16 +113,19 @@ func UserSideAuth(c net.Conn, username, password string) (*gopaque.UserAuthFinis
 
 func RunServer(c net.Conn) error {
 	// This stores the registered users
-	registeredUsers := map[string]*gopaque.ServerRegisterComplete{}
+	registeredUsers := map[string][]byte{}
+	// *gopaque.ServerRegisterComplete{}
 	// Create a key pair for our server
 	key := crypto.NewKey(nil)
 	// Run forever handling register and auth
 	for {
+		fmt.Println("Server Recv Messages from client")
 		// Get the next user message
 		msgType, msgBytes, err := recvMessageBytes(c)
 		if err != nil {
 			return err
 		}
+		fmt.Println("msgType : ", msgType)
 		// Handle different message types
 		switch msgType {
 		// Handle registration...
@@ -129,7 +135,11 @@ func RunServer(c net.Conn) error {
 			} else if username := string(regComplete.UserID); registeredUsers[username] != nil {
 				return fmt.Errorf("Username '%v' already exists", username)
 			} else {
-				registeredUsers[username] = regComplete
+				regCompleteBytes, e1 := regComplete.ToBytes()
+				if e1 != nil {
+					return e1
+				}
+				registeredUsers[username] = regCompleteBytes
 			}
 			// Handle auth...
 		case 'a':
@@ -152,15 +162,34 @@ func ServerSideRegister(c net.Conn, key kyber.Scalar, userInitBytes []byte) (*go
 	} else if err = sendMessage(c, 'r', serverReg.Init(&userInit)); err != nil {
 		return nil, err
 	}
+	fmt.Println("Serializing serverReg ...")
+	// Serialize the serverReg and save it
+	serverRegBytes, e2 := serverReg.ToBytes()
+	fmt.Println("Serializing serverReg ...", serverRegBytes)
+	if e2 != nil {
+		return nil, e2
+	}
+
 	// Get back the user complete and complete things ourselves
 	var userComplete gopaque.UserRegisterComplete
 	if err := recvMessage(c, &userComplete); err != nil {
 		return nil, err
 	}
+
+	// Serialize the serverReg and save it
+	serverReg = &gopaque.ServerRegister{}
+	fmt.Println("UnSerializing serverReg ...")
+	e2 = serverReg.FromBytes(crypto, serverRegBytes)
+	fmt.Println("serverReg ...", e2)
+	if e2 != nil {
+		return nil, e2
+	}
+
+	fmt.Println("Completing User Registeration ...")
 	return serverReg.Complete(&userComplete), nil
 }
 
-func ServerSideAuth(c net.Conn, userInitBytes []byte, registeredUsers map[string]*gopaque.ServerRegisterComplete) error {
+func ServerSideAuth(c net.Conn, userInitBytes []byte, registeredUsers map[string][]byte) error {
 	// Create the server auth w/ an embedded key exchange. We could store this
 	// key exchange if we wanted access to the shared secret afterwards.
 	serverAuth := gopaque.NewServerAuth(crypto, gopaque.NewKeyExchangeSigma(crypto))
@@ -170,9 +199,14 @@ func ServerSideAuth(c net.Conn, userInitBytes []byte, registeredUsers map[string
 		return err
 	}
 	// Load up the registration info
-	regComplete := registeredUsers[string(userInit.UserID)]
-	if regComplete == nil {
+	regCompleteBytes := registeredUsers[string(userInit.UserID)]
+	if regCompleteBytes == nil {
 		return fmt.Errorf("Username not found")
+	}
+	regComplete := &gopaque.ServerRegisterComplete{}
+	
+	if e1 := regComplete.FromBytes(crypto, regCompleteBytes);  e1 != nil {
+		return fmt.Errorf("Error in Decoding regComplete")
 	}
 	// Complete the auth and send it back
 	if serverComplete, err := serverAuth.Complete(&userInit, regComplete); err != nil {

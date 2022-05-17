@@ -129,7 +129,7 @@ type ServerRegister struct {
 // ToBytes implements Marshaler.ToBytes.
 func (u *ServerRegister) ToBytes() ([]byte, error) {
 	b := newBuf(nil)
-	err := b.WriteScalar(u.privateKey, u.kU)
+	err := b.WriteScalar(u.privateKey)
 	err = b.WriteScalarIfNotErr(err, u.kU)
 	err = b.WriteVarBytesIfNotErr(err, u.userID)
 	return b.Bytes(), err
@@ -142,6 +142,7 @@ func (u *ServerRegister) FromBytes(c Crypto, data []byte) (err error) {
 	u.privateKey, err = b.ReadScalar(c)
 	u.kU, err = b.ReadScalarIfNotErr(c, err)
 	u.userID, err = b.ReadVarBytesIfNotErr(err)
+	u.crypto = c
 	return b.AssertUnmarshalNoMoreDataIfNotErr(err)
 }
 
@@ -201,6 +202,30 @@ type ServerRegisterComplete struct {
 	EnvU             []byte
 	KU               kyber.Scalar
 }
+
+// ToBytes implements Marshaler.ToBytes.
+func (u *ServerRegisterComplete) ToBytes() ([]byte, error) {
+	b := newBuf(nil)
+	err := b.WriteScalar(u.ServerPrivateKey)
+	err = b.WriteScalarIfNotErr(err, u.KU)
+	err = b.WritePointIfNotErr(err, u.UserPublicKey)
+	err = b.WriteVarBytesIfNotErr(err, u.EnvU)
+	err = b.WriteVarBytesIfNotErr(err, u.UserID)
+	return b.Bytes(), err
+}
+
+// FromBytes implements Marshaler.FromBytes. This can return
+// ErrUnmarshalMoreData if the data is too big.
+func (u *ServerRegisterComplete) FromBytes(c Crypto, data []byte) (err error) {
+	b := newBuf(data)
+	u.ServerPrivateKey, err = b.ReadScalar(c)
+	u.KU, err = b.ReadScalarIfNotErr(c, err)
+	u.UserPublicKey, err = b.ReadPointIfNotErr(c, err)
+	u.EnvU, err = b.ReadVarBytesIfNotErr(err)
+	u.UserID, err = b.ReadVarBytesIfNotErr(err)
+	return b.AssertUnmarshalNoMoreDataIfNotErr(err)
+}
+
 
 // Complete takes the last info from the user and returns a st of data that
 // must be stored by the server.
