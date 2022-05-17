@@ -174,6 +174,35 @@ func NewServerAuth(crypto Crypto, embeddedKeyExchange KeyExchange) *ServerAuth {
 	return &ServerAuth{crypto: crypto, embeddedKeyExchange: embeddedKeyExchange}
 }
 
+// ToBytes implements Marshaler.ToBytes.
+func (s *ServerAuth) ToBytes() ([]byte, error) {
+	b := newBuf(nil)
+	keyExchangeSigma, ok := s.embeddedKeyExchange.(*KeyExchangeSigma)
+	if !ok {
+		return b.Bytes(), fmt.Errorf("Unable to convert to KeyExchangeSigma")
+	}
+	ib, err := keyExchangeSigma.ToBytes();
+	err = b.WriteVarBytesIfNotErr(err, ib)
+	return b.Bytes(), err
+}
+
+// FromBytes implements Marshaler.FromBytes. This can return
+// ErrUnmarshalMoreData if the data is too big.
+func (s *ServerAuth) FromBytes(c Crypto, data []byte) (err error) {
+	b := newBuf(data)
+	ib, err := b.ReadVarBytes()
+	if err != nil {
+		// TODO assuming NewKeyExchangeSigma is used as KeyExchange interface
+		keyExchangeSigma :=  NewKeyExchangeSigma(c)
+		s.embeddedKeyExchange = keyExchangeSigma
+		err = keyExchangeSigma.FromBytes(c, ib)
+	}
+	s.crypto = c
+
+	return b.AssertUnmarshalNoMoreDataIfNotErr(err)
+}
+
+
 // ServerAuthComplete is the resulting info from ServerAuth to send back to the
 // user. It implements Marshaler.
 type ServerAuthComplete struct {

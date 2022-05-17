@@ -1,6 +1,7 @@
 package gopaque_test
 
 import (
+	"testing"
 	"bytes"
 	"fmt"
 
@@ -8,7 +9,7 @@ import (
 )
 
 // This simple example doesn't marshal the messages, it just sends them.
-func TestExample_simple() {
+func TestExample_simple(t *testing.T) {
 	crypto := gopaque.CryptoDefault
 	// Registration first...create user side and server side
 	userReg := gopaque.NewUserRegister(crypto, []byte("user foo"), nil)

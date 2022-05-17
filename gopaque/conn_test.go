@@ -220,6 +220,17 @@ func ServerSideAuth(c net.Conn, userInitBytes []byte, registeredUsers map[string
 	if err := recvMessage(c, &userComplete); err != nil {
 		return err
 	}
+
+	serverAuth2 := &gopaque.ServerAuth{}
+
+	if ib, err := serverAuth.ToBytes(); err != nil {
+		return err
+	} else {
+		if err = serverAuth2.FromBytes(crypto, ib); err != nil {
+			return err
+		}
+	}
+
 	return serverAuth.Finish(&userComplete)
 }
 
