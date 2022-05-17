@@ -33,6 +33,8 @@ type buf struct {
 
 func newBuf(b []byte) *buf { return &buf{bytes.NewBuffer(b)} }
 
+func NewBuf(b []byte) *buf { return &buf{bytes.NewBuffer(b)} }
+
 func (b *buf) AssertUnmarshalNoMoreDataIfNotErr(err error) error {
 	if err == nil && b.Len() > 0 {
 		err = &ErrUnmarshalMoreData{b.Len()}

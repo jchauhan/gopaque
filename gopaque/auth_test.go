@@ -8,7 +8,7 @@ import (
 )
 
 // This simple example doesn't marshal the messages, it just sends them.
-func Example_simple() {
+func TestExample_simple() {
 	crypto := gopaque.CryptoDefault
 	// Registration first...create user side and server side
 	userReg := gopaque.NewUserRegister(crypto, []byte("user foo"), nil)
